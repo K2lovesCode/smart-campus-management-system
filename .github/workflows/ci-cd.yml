@@ -1,0 +1,95 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ${{ github.repository }}
+
+jobs:
+  # 1. Build & test the application (via Maven, which wraps npm).
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (for Maven)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Maven build: frontend-maven-plugin installs Node/npm and runs the npm
+      # install/build for both modules. This is the "Maven stage" of the pipeline.
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      - name: Backend install (for tests)
+        working-directory: backend
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test --if-present
+
+  # 2. Build Docker images and push to GitHub Container Registry.
+  docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}-backend:latest
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_BASE }}-frontend:latest
+
+  # 3. Deploy to Kubernetes (runs only if a KUBE_CONFIG secret is configured).
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to cluster
+        if: ${{ secrets.KUBE_CONFIG != '' }}
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=$PWD/kubeconfig
+          kubectl apply -f k8s/
+          kubectl -n smart-campus rollout restart deployment/backend deployment/frontend
+
+      - name: Skip note
+        if: ${{ secrets.KUBE_CONFIG == '' }}
+        run: echo "No KUBE_CONFIG secret set — skipping deploy. Images were pushed to GHCR."

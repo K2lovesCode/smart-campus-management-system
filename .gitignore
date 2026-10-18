@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Env files (never commit real secrets)
+.env
+*.local
+
+# Maven
+target/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# kubeconfig dumped during CI
+kubeconfig

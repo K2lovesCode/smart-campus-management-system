@@ -1,0 +1,29 @@
+groups:
+  - name: smart-campus-alerts
+    rules:
+      - alert: BackendDown
+        expr: up{job="smart-campus-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Smart Campus backend is down"
+          description: "The backend has been unreachable for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "More than 5% of requests are returning server errors."
+
+      - alert: SlowResponses
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API responses"
+          description: "95th percentile latency has been above 1s for 5 minutes."

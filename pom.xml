@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Parent Maven project for the Smart Campus Management System.
+
+  This is a thin wrapper: the real build is still npm. The frontend-maven-plugin
+  downloads a local Node/npm into each module and runs the npm scripts, so a
+  Maven-based pipeline (e.g. Jenkins + Maven) can build the whole project with:
+
+      mvn clean package
+
+  Node/React remain the primary toolchain; Maven just orchestrates them here.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>edu.annauniv.cse</groupId>
+  <artifactId>smart-campus</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>Smart Campus Management System</name>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <node.version>v20.17.0</node.version>
+    <npm.version>10.8.2</npm.version>
+    <frontend.plugin.version>1.15.1</frontend.plugin.version>
+  </properties>
+
+  <modules>
+    <module>backend</module>
+    <module>frontend</module>
+  </modules>
+</project>

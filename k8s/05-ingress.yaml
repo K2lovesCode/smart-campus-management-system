@@ -1,0 +1,29 @@
+# Requires an ingress controller (e.g. nginx-ingress) in the cluster.
+# Add "127.0.0.1 smart-campus.local" to your hosts file for local testing.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smart-campus-ingress
+  namespace: smart-campus
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: smart-campus.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

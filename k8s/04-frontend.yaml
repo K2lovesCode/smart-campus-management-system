@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: smart-campus
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          # Replace with your pushed image, e.g. ghcr.io/<user>/smart-campus-frontend:latest
+          image: smart-campus-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: smart-campus
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80

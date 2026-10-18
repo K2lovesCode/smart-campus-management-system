@@ -1,0 +1,22 @@
+# Run once after the backend image is built to populate demo data:
+#   kubectl apply -f k8s/06-seed-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-data
+  namespace: smart-campus
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: smart-campus-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["node", "src/seed.js"]
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secret
