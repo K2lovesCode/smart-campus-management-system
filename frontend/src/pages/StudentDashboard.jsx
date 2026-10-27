@@ -1,26 +1,56 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api/client.js';
 import Navbar from '../components/Navbar.jsx';
+
+// How often the dashboard re-fetches attendance so updates appear automatically.
+const REFRESH_MS = 15000;
 
 export default function StudentDashboard() {
   const [attendance, setAttendance] = useState(null);
   const [timetable, setTimetable] = useState(null);
   const [notices, setNotices] = useState([]);
   const [error, setError] = useState('');
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const mounted = useRef(true);
+
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [a, t, n] = await Promise.all([
+        api.get('/api/attendance/me'),
+        api.get('/api/timetable/me').catch(() => ({ data: { timetable: null } })),
+        api.get('/api/notices'),
+      ]);
+      if (!mounted.current) return;
+      setAttendance(a.data);
+      setTimetable(t.data.timetable);
+      setNotices(n.data.notices || []);
+      setUpdatedAt(new Date());
+      setError('');
+    } catch (e) {
+      if (mounted.current) setError(e.response?.data?.message || 'Failed to load data');
+    } finally {
+      if (mounted.current) setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/api/attendance/me'),
-      api.get('/api/timetable/me').catch(() => ({ data: { timetable: null } })),
-      api.get('/api/notices'),
-    ])
-      .then(([a, t, n]) => {
-        setAttendance(a.data);
-        setTimetable(t.data.timetable);
-        setNotices(n.data.notices);
-      })
-      .catch((e) => setError(e.response?.data?.message || 'Failed to load data'));
-  }, []);
+    mounted.current = true;
+    loadData();
+
+    // Poll so attendance marked by faculty appears without a manual reload.
+    const id = setInterval(loadData, REFRESH_MS);
+    // Also refresh when the tab regains focus.
+    const onFocus = () => loadData();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      mounted.current = false;
+      clearInterval(id);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [loadData]);
 
   const overall = attendance?.overall;
 
@@ -28,8 +58,18 @@ export default function StudentDashboard() {
     <>
       <Navbar />
       <div className="container">
-        <h1 style={{ fontSize: 22 }}>Student Dashboard</h1>
-        {error && <div className="alert">{error}</div>}
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: 22, margin: 0 }}>Student Dashboard</h1>
+          <div className="row" style={{ gap: 10 }}>
+            {updatedAt && (
+              <span className="muted">Updated {updatedAt.toLocaleTimeString()}</span>
+            )}
+            <button className="ghost" onClick={loadData} disabled={refreshing}>
+              {refreshing ? 'Refreshing…' : '↻ Refresh'}
+            </button>
+          </div>
+        </div>
+        {error && <div className="alert" style={{ marginTop: 12 }}>{error}</div>}
 
         {/* Attendance shortage alert */}
         {overall?.shortage && (

@@ -40,7 +40,9 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      # Host port is configurable (default 8088) to avoid clashes with other
+      # local services (e.g. EDB Postgres on 8080). Override with FRONTEND_PORT.
+      - "${FRONTEND_PORT:-8088}:80"
 
   # --- Monitoring stack ---
   prometheus:

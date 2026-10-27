@@ -64,6 +64,11 @@ export default function Login() {
             Demo faculty
           </button>
         </div>
+
+        <p className="muted" style={{ marginTop: 14 }}>
+          Students: log in with the email and password your faculty set for you
+          (faculty create accounts under the “Students” tab).
+        </p>
       </div>
     </div>
   );

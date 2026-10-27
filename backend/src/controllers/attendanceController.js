@@ -16,17 +16,32 @@ export async function markAttendance(req, res) {
   day.setHours(0, 0, 0, 0);
 
   const results = [];
+  let skipped = 0;
   for (const r of records) {
-    if (!r.studentId || !['present', 'absent'].includes(r.status)) continue;
-    const doc = await Attendance.findOneAndUpdate(
-      { student: r.studentId, subject, date: day },
-      { status: r.status, markedBy: req.user._id },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    results.push(doc);
+    if (!r.studentId || !['present', 'absent'].includes(r.status)) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      const doc = await Attendance.findOneAndUpdate(
+        { student: r.studentId, subject, date: day },
+        { status: r.status, markedBy: req.user._id },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      results.push(doc);
+    } catch (err) {
+      // A single bad record (e.g. invalid id) must not fail the whole batch.
+      console.warn('[attendance] skipped record:', err.message);
+      skipped += 1;
+    }
   }
 
-  res.status(201).json({ message: `Marked ${results.length} record(s)`, records: results });
+  res.status(201).json({
+    message: `Marked ${results.length} record(s)${skipped ? `, skipped ${skipped}` : ''}`,
+    count: results.length,
+    skipped,
+    records: results,
+  });
 }
 
 function summarise(records) {
